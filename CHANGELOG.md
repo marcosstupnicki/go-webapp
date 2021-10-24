@@ -6,5 +6,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.1] - 2021-10-23
+
 ### Added
-- Add basic webapplication structure. [#1](https://github.com/marcosstupnicki/go-webapplication/pull/1)
+- Add HTTP JSON response. [#2](https://github.com/marcosstupnicki/go-webapplication/pull/2)
+
+## [1.0.0] - 2021-10-23
+
+### Added
+- Add basic go-webapp structure. [#1](https://github.com/marcosstupnicki/go-webapplication/pull/1)
