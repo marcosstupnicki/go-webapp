@@ -6,6 +6,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.0] - 2021-10-24
+
+### Added
+- Add function to get URL params. [#4](https://github.com/marcosstupnicki/go-webapplication/pull/4)
+
 ## [1.2.0] - 2021-10-23
 
 ### Added
