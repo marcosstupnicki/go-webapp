@@ -25,6 +25,7 @@ func main()  {
 	userGroup := app.Group("/users")
 	userGroup.Post("/", handlerPostUser)
 	userGroup.Get("/{id}", handlerGetUser)
+	userGroup.Put("/{id}", handlerUpdateUser)
 
 	err = app.Run()
 	if err != nil {
@@ -37,11 +38,16 @@ func handlerPostUser(w http.ResponseWriter, r *http.Request) {
 	dummyUser := User{Name: "dummy-user"}
 	fmt.Printf("user request: %+v", dummyUser)
 
-	gowebapp.Write(w, 201, dummyUser)
+	gowebapp.RespondWithJSON(w, 201, dummyUser)
 }
 
 func handlerGetUser(w http.ResponseWriter, r *http.Request) {
 	dummyUser := User{Name: "dummy-user"}
 
-	gowebapp.Write(w, 200, dummyUser)
+	gowebapp.RespondWithJSON(w, 200, dummyUser)
+}
+
+func handlerUpdateUser(w http.ResponseWriter, r *http.Request) {
+	// an internal error occurred ...
+	gowebapp.RespondWithError(w, 500,  "Access denied for user 'root'")
 }

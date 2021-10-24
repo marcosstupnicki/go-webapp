@@ -5,8 +5,8 @@ import (
 	"net/http"
 )
 
-// Write sends the response to the client.
-func Write(w http.ResponseWriter, code int, payload interface{}) error {
+// RespondWithJSON sends the response "payload" as JSON format to the client with code as status code.
+func RespondWithJSON(w http.ResponseWriter, code int, payload interface{}) error {
 	if code == 0 {
 		return ErrStatusCode0Invalid
 	}
@@ -38,4 +38,9 @@ func isBodyAllowed(status int) bool {
 	}
 
 	return true
+}
+
+// RespondWithError return error message as JSON format. Eg: {"message": "Access denied for user 'root'"}
+func RespondWithError(w http.ResponseWriter, code int, msg string) error {
+	return RespondWithJSON(w, code, map[string]string{"message": msg})
 }
