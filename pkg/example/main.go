@@ -12,6 +12,10 @@ const (
 	ExitCodeFailToRunWebApplication
 )
 
+type User struct {
+	Name string `json:"name"`
+}
+
 func main()  {
 	app, err := gowebapp.NewWebApplication("local")
 	if err != nil {
@@ -30,9 +34,14 @@ func main()  {
 }
 
 func handlerPostUser(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintf(w, "Hi there, POST")
+	dummyUser := User{Name: "dummy-user"}
+	fmt.Printf("user request: %+v", dummyUser)
+
+	gowebapp.Write(w, 201, dummyUser)
 }
 
 func handlerGetUser(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintf(w, "Hi there, GET")
+	dummyUser := User{Name: "dummy-user"}
+
+	gowebapp.Write(w, 200, dummyUser)
 }
