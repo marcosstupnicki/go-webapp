@@ -1,18 +1,8 @@
-# go-webapp
-
-**go-webapp** is a lightweight router for building Go HTTP services. **webapplication** is a chi wrapper that provides shortcuts to design and build REST API servers.
-
----
-## Example
-
-**As easy as:**
-
-```go
 package main
 
 import (
 	"fmt"
-	"github.com/marcosstupnicki/go-webapp/pkg"
+	gowebapp "github.com/marcosstupnicki/go-webapp/pkg"
 	"net/http"
 	"os"
 )
@@ -46,4 +36,3 @@ func handlerPostUser(w http.ResponseWriter, r *http.Request) {
 func handlerGetUser(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "Hi there, GET")
 }
-```
