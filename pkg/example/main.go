@@ -13,10 +13,11 @@ const (
 )
 
 type User struct {
+	ID   string `json:"id"`
 	Name string `json:"name"`
 }
 
-func main()  {
+func main() {
 	app, err := gowebapp.NewWebApplication("local")
 	if err != nil {
 		os.Exit(ExitCodeFailToCreateWebApplication)
@@ -42,12 +43,13 @@ func handlerPostUser(w http.ResponseWriter, r *http.Request) {
 }
 
 func handlerGetUser(w http.ResponseWriter, r *http.Request) {
-	dummyUser := User{Name: "dummy-user"}
+	id := gowebapp.URLParam(r, "id")
+	dummyUser := User{ID: id, Name: "dummy-user"}
 
 	gowebapp.RespondWithJSON(w, 200, dummyUser)
 }
 
 func handlerUpdateUser(w http.ResponseWriter, r *http.Request) {
 	// an internal error occurred ...
-	gowebapp.RespondWithError(w, 500,  "Access denied for user 'root'")
+	gowebapp.RespondWithError(w, 500, "Access denied for user 'root'")
 }

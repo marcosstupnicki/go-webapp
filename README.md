@@ -3,7 +3,7 @@
 **go-webapp** is a lightweight router for building Go HTTP services. **webapplication** is a chi wrapper that provides shortcuts to design and build REST API servers.
 
 ---
-## Example
+## Examples
 
 **As easy as:**
 
@@ -12,7 +12,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/marcosstupnicki/go-webapp/pkg"
+	gowebapp "github.com/marcosstupnicki/go-webapp/pkg"
 	"net/http"
 	"os"
 )
@@ -22,7 +22,12 @@ const (
 	ExitCodeFailToRunWebApplication
 )
 
-func main()  {
+type User struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
+func main() {
 	app, err := gowebapp.NewWebApplication("local")
 	if err != nil {
 		os.Exit(ExitCodeFailToCreateWebApplication)
@@ -31,6 +36,7 @@ func main()  {
 	userGroup := app.Group("/users")
 	userGroup.Post("/", handlerPostUser)
 	userGroup.Get("/{id}", handlerGetUser)
+	userGroup.Put("/{id}", handlerUpdateUser)
 
 	err = app.Run()
 	if err != nil {
@@ -40,10 +46,21 @@ func main()  {
 }
 
 func handlerPostUser(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintf(w, "Hi there, POST")
+	dummyUser := User{Name: "dummy-user"}
+	fmt.Printf("user request: %+v", dummyUser)
+
+	gowebapp.RespondWithJSON(w, 201, dummyUser)
 }
 
 func handlerGetUser(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintf(w, "Hi there, GET")
+	id := gowebapp.URLParam(r, "id")
+	dummyUser := User{ID: id, Name: "dummy-user"}
+
+	gowebapp.RespondWithJSON(w, 200, dummyUser)
+}
+
+func handlerUpdateUser(w http.ResponseWriter, r *http.Request) {
+	// an internal error occurred ...
+	gowebapp.RespondWithError(w, 500, "Access denied for user 'root'")
 }
 ```
