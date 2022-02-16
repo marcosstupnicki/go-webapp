@@ -1,6 +1,6 @@
 # go-webapp
 
-**go-webapp** is a lightweight router for building Go HTTP services. **webapplication** is a chi wrapper that provides shortcuts to design and build REST API servers.
+**go-webapp** is a lightweight router for building Go HTTP services. **go-webapp** is a chi wrapper that provides shortcuts to design and build REST API servers.
 
 ---
 ## Examples
@@ -18,8 +18,7 @@ import (
 )
 
 const (
-	ExitCodeFailToCreateWebApplication = iota
-	ExitCodeFailToRunWebApplication
+	ExitCodeFailToRunWebApps = iota
 )
 
 type User struct {
@@ -28,20 +27,17 @@ type User struct {
 }
 
 func main() {
-	app, err := gowebapp.NewWebApplication("local")
-	if err != nil {
-		os.Exit(ExitCodeFailToCreateWebApplication)
-	}
+	app := gowebapp.NewWebApp("local")
 
 	userGroup := app.Group("/users")
 	userGroup.Post("/", handlerPostUser)
 	userGroup.Get("/{id}", handlerGetUser)
 	userGroup.Put("/{id}", handlerUpdateUser)
 
-	err = app.Run()
+	err := app.Run()
 	if err != nil {
 		fmt.Print("error booting application", err)
-		os.Exit(ExitCodeFailToRunWebApplication)
+		os.Exit(ExitCodeFailToRunWebApps)
 	}
 }
 
