@@ -6,17 +6,17 @@ import (
 	"net/http"
 )
 
-func NewWebApplication(environment string) (*WebApplication, error) {
+func NewWebApp(environment string) *WebApp {
 	router := newRouter()
 	scope := newScope(environment)
 
-	return &WebApplication{
+	return &WebApp{
 		Router: router,
 		Scope: scope,
-	}, nil
+	}
 }
 
-func (wa *WebApplication)Run() error{
+func (wa *WebApp)Run() error{
 	return http.ListenAndServe(":8080", wa.mux)
 }
 

@@ -1,6 +1,6 @@
 package gowebapp
 
-type WebApplication struct {
+type WebApp struct {
 	*Router
 	Scope
 }
