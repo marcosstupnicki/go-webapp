@@ -9,7 +9,8 @@ import (
 )
 
 func TestURLParam(t *testing.T) {
-	webapp := NewWebApp("dummy-env", "8080")
+	webapp, err := NewWebApp("dummy-env", "8080")
+	require.NoError(t, err)
 
 	ping := func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(200)

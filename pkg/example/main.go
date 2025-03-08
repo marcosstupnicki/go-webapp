@@ -1,13 +1,13 @@
 package main
 
 import (
-    "fmt"
-    "net/http"
-    "os"
+	"fmt"
+	"net/http"
+	"os"
 
-    "github.com/go-chi/chi"
-    "github.com/go-chi/chi/middleware"
-    gowebapp "github.com/marcosstupnicki/go-webapp/pkg"
+	"github.com/go-chi/chi"
+	"github.com/go-chi/chi/middleware"
+	gowebapp "github.com/marcosstupnicki/go-webapp/pkg"
 )
 
 const (
@@ -20,26 +20,29 @@ type User struct {
 }
 
 func main() {
-	app := gowebapp.NewWebApp("local", "8080")
+	app, err := gowebapp.NewWebApp("local", "8080")
+	if err != nil {
+		fmt.Print("error creating webapp", err)
+		os.Exit(ExitCodeFailToRunWebApp)
+	}
+	// User routes with scoped middleware using Route (prefixed sub-tree)
+	app.Route("/users", func(r chi.Router) {
+		// Apply middlewares before defining routes
+		r.Use(middleware.Logger)
 
-    // User routes with scoped middleware using Route (prefixed sub-tree)
-    app.Route("/users", func(r chi.Router) {
-        // Apply middlewares before defining routes
-        r.Use(middleware.Logger)
+		r.Post("/", handlerPostUser)
+		r.Get("/{id}", handlerGetUser)
+		r.Put("/{id}", handlerUpdateUser)
+	})
 
-        r.Post("/", handlerPostUser)
-        r.Get("/{id}", handlerGetUser)
-        r.Put("/{id}", handlerUpdateUser)
-    })
+	// Operational endpoints using Group (no prefix, shared middleware)
+	app.Group(func(r chi.Router) {
+		r.Use(middleware.NoCache)
+		r.Get("/health", handlerHealth)
+		r.Get("/metrics", handlerMetrics)
+	})
 
-    // Operational endpoints using Group (no prefix, shared middleware)
-    app.Group(func(r chi.Router) {
-        r.Use(middleware.NoCache)
-        r.Get("/health", handlerHealth)
-        r.Get("/metrics", handlerMetrics)
-    })
-
-	err := app.Run()
+	err = app.Run()
 	if err != nil {
 		fmt.Print("error booting application", err)
 		os.Exit(ExitCodeFailToRunWebApp)
@@ -58,16 +61,16 @@ func handlerGetUser(w http.ResponseWriter, r *http.Request) {
 }
 
 func handlerUpdateUser(w http.ResponseWriter, r *http.Request) {
-    // an internal error occurred ...
-    gowebapp.RespondWithError(w, 500, "Access denied for user")
+	// an internal error occurred ...
+	gowebapp.RespondWithError(w, 500, "Access denied for user")
 }
 
 func handlerHealth(w http.ResponseWriter, r *http.Request) {
-    _ = gowebapp.RespondWithJSON(w, 200, map[string]string{"status": "ok"})
+	_ = gowebapp.RespondWithJSON(w, 200, map[string]string{"status": "ok"})
 }
 
 func handlerMetrics(w http.ResponseWriter, r *http.Request) {
-    w.Header().Set("Content-Type", "text/plain")
-    w.WriteHeader(200)
-    _, _ = w.Write([]byte("requests_total 1\n"))
+	w.Header().Set("Content-Type", "text/plain")
+	w.WriteHeader(200)
+	_, _ = w.Write([]byte("requests_total 1\n"))
 }
