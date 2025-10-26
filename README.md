@@ -1,62 +1,38 @@
 # go-webapp
 
-**go-webapp** is a lightweight router for building Go HTTP services. **go-webapp** is a chi wrapper that provides shortcuts to design and build REST API servers.
+go-webapp is a lightweight wrapper around chi for building HTTP services with simple routing helpers and sensible middleware defaults.
 
 ---
-## Examples
-
-**As easy as:**
+## Quick Start
 
 ```go
-package main
+app := gowebapp.NewWebApp("local", "8080")
 
-import (
-	"fmt"
-	gowebapp "github.com/marcosstupnicki/go-webapp/pkg"
-	"net/http"
-	"os"
-)
+// Preferred: Route - group a sub-tree under a prefix
+app.Route("/users", func(r chi.Router) {
+    r.Get("/{id}", handlerGetUser)
+})
 
-const (
-	ExitCodeFailToRunWebApps = iota
-)
+// Alternative: Group - apply shared middleware without changing the prefix
+app.Group(func(r chi.Router) {
+    r.Get("/health", handlerHealth)
+    r.Get("/metrics", handlerMetrics)
+})
 
-type User struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
-}
-
-func main() {
-	app := gowebapp.NewWebApp("local")
-
-	userGroup := app.Group("/users")
-	userGroup.Post("/", handlerPostUser)
-	userGroup.Get("/{id}", handlerGetUser)
-	userGroup.Put("/{id}", handlerUpdateUser)
-
-	err := app.Run()
-	if err != nil {
-		fmt.Print("error booting application", err)
-		os.Exit(ExitCodeFailToRunWebApps)
-	}
-}
-
-func handlerPostUser(w http.ResponseWriter, r *http.Request) {
-	dummyUser := User{Name: "dummy-user"}
-	fmt.Printf("user request: %+v", dummyUser)
-
-	gowebapp.RespondWithJSON(w, 201, dummyUser)
-}
-
-func handlerGetUser(w http.ResponseWriter, r *http.Request) {
-	id := gowebapp.URLParam(r, "id")
-	dummyUser := User{ID: id, Name: "dummy-user"}
-
-	gowebapp.RespondWithJSON(w, 200, dummyUser)
-}
-
-func handlerUpdateUser(w http.ResponseWriter, r *http.Request) {
-	// an internal error occurred ...
-	gowebapp.RespondWithError(w, 500, "Access denied for user 'root'")
-}
+_ = app.Run()
 ```
+
+## Route vs Group
+- Route: mounts a subrouter under a prefix (e.g., `/users`). Middlewares declared inside apply to the whole sub-tree. Prefer Route when endpoints share a clear prefix.
+- Group: creates a block without a prefix to apply middleware to multiple absolute paths. Use it when there is no natural common prefix.
+- chi rule: call `r.Use(...)` before declaring routes inside the same block; chi does not allow adding middleware after routes.
+
+Tip: for a single route with middleware, use `r.With(mw...).Get("/path", h)`.
+
+Project convention: Prefer `Route` for prefixed sections, use `Group` sparingly when there is no shared prefix, and use `r.With(...)` for one-off route middleware.
+
+## Commands
+- Build: `go build -o bin/webapp .`
+- Run: `go run .`
+- Test: `go test ./... -v`
+- Format/Vet: `go fmt ./...` and `go vet ./...`

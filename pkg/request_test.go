@@ -1,44 +1,29 @@
 package gowebapp
 
 import (
-	"github.com/stretchr/testify/require"
 	"net/http"
+	"net/http/httptest"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestURLParam(t *testing.T) {
-	webapp := NewWebApp("dummy-env")
+	webapp := NewWebApp("dummy-env", "8080")
 
 	ping := func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(200)
-		w.Write([]byte("pong" + URLParam(r, "iidd")))
+		w.Write([]byte("pong" + URLParam(r, "id")))
 	}
 
 	webapp.Get("/{id}", ping)
 
-	var tests = []struct {
-		name string
-		request *http.Request
-		key string
-		expectedParam string
+	// Test using the actual router
+	req, _ := http.NewRequest("GET", "/value", nil)
+	rr := httptest.NewRecorder()
 
-	}{
-		{
-			name: "URLParam Ok",
-			request: func() *http.Request {
-				req, _ := http.NewRequest("GET", "/value", nil)
+	webapp.Router.ServeHTTP(rr, req)
 
-				return req
-			}(),
-			key: "id",
-			expectedParam: "value",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			urlParam := URLParam(tt.request, tt.key)
-			require.Equal(t, tt.expectedParam, urlParam)
-		})
-	}
+	require.Equal(t, 200, rr.Code)
+	require.Equal(t, "pongvalue", rr.Body.String())
 }
