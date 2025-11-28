@@ -3,7 +3,7 @@ module github.com/marcosstupnicki/go-webapp
 go 1.22.0
 
 require (
-	github.com/go-chi/chi v1.5.4
+	github.com/go-chi/chi/v5 v5.0.12
 	github.com/marcosstupnicki/go-log v0.0.0-20250308173655-986bb8b7a268
 	github.com/stretchr/testify v1.9.0
 )
