@@ -9,17 +9,16 @@ import (
 )
 
 func TestURLParam(t *testing.T) {
-	webapp, err := NewWebApp("dummy-env", "8080")
-	require.NoError(t, err)
+	webapp := mustNew(t, "dummy-env", "8080")
 
 	ping := func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(200)
-		w.Write([]byte("pong" + URLParam(r, "id")))
+		_, _ = w.Write([]byte("pong" + URLParam(r, "id")))
 	}
 
-	webapp.Get("/{id}", ping)
+	// Route registration moved from the WebApp helper to the Router in v2.
+	webapp.Router.Get("/{id}", ping)
 
-	// Test using the actual router
 	req, _ := http.NewRequest("GET", "/value", nil)
 	rr := httptest.NewRecorder()
 
