@@ -9,39 +9,26 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	golog "github.com/marcosstupnicki/go-log"
 )
 
 func TestDefaultConfig(t *testing.T) {
 	cfg := defaultConfig()
 	assert.False(t, cfg.corsEnabled)
-	assert.Nil(t, cfg.logger)
+	assert.Empty(t, cfg.corsOrigins)
 }
 
 func TestOptions(t *testing.T) {
 	tests := []struct {
-		name   string
-		opt    Option
-		check  func(t *testing.T, cfg webAppConfig)
+		name  string
+		opt   Option
+		check func(t *testing.T, cfg webAppConfig)
 	}{
 		{
 			name: "WithCORS enables CORS",
-			opt:  WithCORS([]string{"https://acklane.com"}),
+			opt:  WithCORS([]string{"https://example.com"}),
 			check: func(t *testing.T, cfg webAppConfig) {
 				assert.True(t, cfg.corsEnabled)
-				assert.Equal(t, []string{"https://acklane.com"}, cfg.corsOrigins)
-			},
-		},
-		{
-			name: "WithLogger sets logger",
-			opt: func() Option {
-				l, err := golog.New("test")
-				require.NoError(t, err)
-				return WithLogger(l)
-			}(),
-			check: func(t *testing.T, cfg webAppConfig) {
-				assert.NotNil(t, cfg.logger)
+				assert.Equal(t, []string{"https://example.com"}, cfg.corsOrigins)
 			},
 		},
 	}
@@ -64,9 +51,9 @@ func TestNew_Endpoints(t *testing.T) {
 		wantJSON   map[string]interface{}
 	}{
 		{
-			name:       "health endpoint returns 200",
+			name:       "ping endpoint returns 200",
 			method:     http.MethodGet,
-			path:       "/health",
+			path:       "/ping",
 			wantStatus: http.StatusOK,
 			wantJSON:   map[string]interface{}{"status": "ok"},
 		},

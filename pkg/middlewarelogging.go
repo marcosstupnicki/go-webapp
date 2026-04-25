@@ -33,6 +33,14 @@ func logRequestResponse(logger golog.Logger) func(http.Handler) http.Handler {
 			next.ServeHTTP(lrw, r)
 			duration := time.Since(start)
 
+			var responseBodyMap map[string]interface{}
+			responseBody := lrw.GetBody()
+			if len(responseBody) > 0 {
+				if err := json.Unmarshal(responseBody, &responseBodyMap); err != nil {
+					responseBodyMap = map[string]interface{}{"raw": string(responseBody)}
+				}
+			}
+
 			logger.Info(r.Context(), "http_request",
 				golog.Field("request", map[string]interface{}{
 					"body":    requestBodyMap,
@@ -42,7 +50,7 @@ func logRequestResponse(logger golog.Logger) func(http.Handler) http.Handler {
 					"query":   r.URL.Query(),
 				}),
 				golog.Field("response", map[string]interface{}{
-					"body":     lrw.GetBodyMap(),
+					"body":     responseBodyMap,
 					"duration": duration.Milliseconds(),
 					"headers":  lrw.Header(),
 					"status":   lrw.statusCode,
@@ -79,16 +87,4 @@ func (lrw *LoggingResponseWriter) Write(b []byte) (int, error) {
 
 func (lrw *LoggingResponseWriter) GetBody() []byte {
 	return lrw.body.Bytes()
-}
-
-func (lrw *LoggingResponseWriter) GetBodyMap() map[string]interface{} {
-	responseBody := lrw.GetBody()
-	if len(responseBody) == 0 {
-		return nil
-	}
-	var responseBodyMap map[string]interface{}
-	if err := json.Unmarshal(responseBody, &responseBodyMap); err != nil {
-		return map[string]interface{}{"raw": string(responseBody)}
-	}
-	return responseBodyMap
 }

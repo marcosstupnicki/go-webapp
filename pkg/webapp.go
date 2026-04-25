@@ -23,15 +23,9 @@ func New(environment string, port string, opts ...Option) (*WebApp, error) {
 		opt(&cfg)
 	}
 
-	var logger golog.Logger
-	if cfg.logger != nil {
-		logger = *cfg.logger
-	} else {
-		var err error
-		logger, err = golog.New(environment)
-		if err != nil {
-			return nil, fmt.Errorf("gowebapp: create logger: %w", err)
-		}
+	logger, err := golog.New(environment)
+	if err != nil {
+		return nil, fmt.Errorf("gowebapp: create logger: %w", err)
 	}
 
 	scope := Scope{Environment: environment}
@@ -48,12 +42,6 @@ func New(environment string, port string, opts ...Option) (*WebApp, error) {
 // Run starts the HTTP server. Blocks until the server returns an error.
 func (wa *WebApp) Run() error {
 	return http.ListenAndServe(":"+wa.Port, wa.Router.mux)
-}
-
-// Use appends one or more middleware to the router stack.
-// Must be called before registering routes.
-func (wa *WebApp) Use(middlewares ...func(http.Handler) http.Handler) {
-	wa.Router.Use(middlewares...)
 }
 
 // Group creates a temporary scope for mounting middleware before route definitions.
@@ -94,8 +82,8 @@ func newRouter(logger golog.Logger, cfg webAppConfig) *Router {
 	// Request/response logging.
 	mux.Use(logRequestResponse(logger))
 
-	// Health check endpoint.
-	mux.Get("/health", func(w http.ResponseWriter, r *http.Request) {
+	// Ping endpoint.
+	mux.Get("/ping", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(http.StatusOK)
 		json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
