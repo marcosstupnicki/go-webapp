@@ -6,8 +6,23 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
+// Router wraps chi.Mux and exposes HTTP method helpers.
 type Router struct {
 	mux *chi.Mux
+}
+
+// Mux returns the underlying chi.Router, allowing direct access for
+// advanced routing features (sub-routers, middleware groups, etc.).
+func (r *Router) Mux() chi.Router {
+	return r.mux
+}
+
+// Use appends one or more middleware onto the Router stack.
+// Middleware are executed in the order they are added.
+func (r *Router) Use(middlewares ...func(http.Handler) http.Handler) {
+	for _, m := range middlewares {
+		r.mux.Use(m)
+	}
 }
 
 func (r *Router) Method(method string, pattern string, handler http.HandlerFunc) {
