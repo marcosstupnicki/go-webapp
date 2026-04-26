@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/felixge/httpsnoop"
 	golog "github.com/marcosstupnicki/go-log"
 )
 
@@ -27,14 +28,28 @@ func logRequestResponse(logger golog.Logger) func(http.Handler) http.Handler {
 				}
 			}
 
-			lrw := newLoggingResponseWriter(w)
+			response := responseCapture{statusCode: http.StatusOK}
+			wrapped := httpsnoop.Wrap(w, httpsnoop.Hooks{
+				Write: func(next httpsnoop.WriteFunc) httpsnoop.WriteFunc {
+					return func(p []byte) (int, error) {
+						response.body.Write(p)
+						return next(p)
+					}
+				},
+				WriteHeader: func(next httpsnoop.WriteHeaderFunc) httpsnoop.WriteHeaderFunc {
+					return func(code int) {
+						response.statusCode = code
+						next(code)
+					}
+				},
+			})
 
 			start := time.Now()
-			next.ServeHTTP(lrw, r)
+			next.ServeHTTP(wrapped, r)
 			duration := time.Since(start)
 
 			var responseBodyMap map[string]interface{}
-			responseBody := lrw.GetBody()
+			responseBody := response.body.Bytes()
 			if len(responseBody) > 0 {
 				if err := json.Unmarshal(responseBody, &responseBodyMap); err != nil {
 					responseBodyMap = map[string]interface{}{"raw": string(responseBody)}
@@ -52,39 +67,15 @@ func logRequestResponse(logger golog.Logger) func(http.Handler) http.Handler {
 				golog.Field("response", map[string]interface{}{
 					"body":     responseBodyMap,
 					"duration": duration.Milliseconds(),
-					"headers":  lrw.Header(),
-					"status":   lrw.statusCode,
+					"headers":  w.Header(),
+					"status":   response.statusCode,
 				}),
 			)
 		})
 	}
 }
 
-// LoggingResponseWriter captures the status code and body written by
-// downstream handlers.
-type LoggingResponseWriter struct {
-	http.ResponseWriter
+type responseCapture struct {
 	statusCode int
 	body       bytes.Buffer
-}
-
-func newLoggingResponseWriter(w http.ResponseWriter) *LoggingResponseWriter {
-	return &LoggingResponseWriter{
-		ResponseWriter: w,
-		statusCode:     http.StatusOK,
-	}
-}
-
-func (lrw *LoggingResponseWriter) WriteHeader(code int) {
-	lrw.statusCode = code
-	lrw.ResponseWriter.WriteHeader(code)
-}
-
-func (lrw *LoggingResponseWriter) Write(b []byte) (int, error) {
-	lrw.body.Write(b)
-	return lrw.ResponseWriter.Write(b)
-}
-
-func (lrw *LoggingResponseWriter) GetBody() []byte {
-	return lrw.body.Bytes()
 }

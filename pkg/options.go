@@ -2,8 +2,9 @@ package gowebapp
 
 // webAppConfig holds configurable settings for the WebApp.
 type webAppConfig struct {
-	corsEnabled bool
-	corsOrigins []string
+	corsEnabled     bool
+	corsOrigins     []string
+	securityHeaders bool
 }
 
 // defaultConfig returns sensible defaults.
@@ -20,5 +21,12 @@ func WithCORS(origins []string) Option {
 	return func(c *webAppConfig) {
 		c.corsEnabled = true
 		c.corsOrigins = origins
+	}
+}
+
+// WithSecurityHeaders enables standard security response headers.
+func WithSecurityHeaders() Option {
+	return func(c *webAppConfig) {
+		c.securityHeaders = true
 	}
 }

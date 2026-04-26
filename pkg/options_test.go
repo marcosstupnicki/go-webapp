@@ -15,6 +15,7 @@ func TestDefaultConfig(t *testing.T) {
 	cfg := defaultConfig()
 	assert.False(t, cfg.corsEnabled)
 	assert.Empty(t, cfg.corsOrigins)
+	assert.False(t, cfg.securityHeaders)
 }
 
 func TestOptions(t *testing.T) {
@@ -29,6 +30,13 @@ func TestOptions(t *testing.T) {
 			check: func(t *testing.T, cfg webAppConfig) {
 				assert.True(t, cfg.corsEnabled)
 				assert.Equal(t, []string{"https://example.com"}, cfg.corsOrigins)
+			},
+		},
+		{
+			name: "WithSecurityHeaders enables security headers",
+			opt:  WithSecurityHeaders(),
+			check: func(t *testing.T, cfg webAppConfig) {
+				assert.True(t, cfg.securityHeaders)
 			},
 		},
 	}
@@ -112,4 +120,15 @@ func TestNew_GroupMiddleware(t *testing.T) {
 func TestNew_RouterMux(t *testing.T) {
 	webapp := mustNew(t, "test", "0")
 	assert.NotNil(t, webapp.Router.Mux())
+}
+
+func TestNew_SecurityHeaders(t *testing.T) {
+	webapp := mustNew(t, "test", "0", WithSecurityHeaders())
+
+	req := httptest.NewRequest(http.MethodGet, "/ping", nil)
+	rr := httptest.NewRecorder()
+	webapp.Router.ServeHTTP(rr, req)
+
+	assert.Equal(t, "nosniff", rr.Header().Get("X-Content-Type-Options"))
+	assert.Equal(t, "DENY", rr.Header().Get("X-Frame-Options"))
 }

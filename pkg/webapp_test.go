@@ -2,6 +2,7 @@ package gowebapp
 
 import (
 	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	"github.com/go-chi/chi/v5"
@@ -22,6 +23,7 @@ func TestNew(t *testing.T) {
 	require.Equal(t, Scope{Environment: "dummy-env"}, webapp.Scope)
 	require.Equal(t, "8080", webapp.Port)
 	require.NotNil(t, webapp.Router)
+	require.NotNil(t, webapp.Context())
 }
 
 func TestWebApp_Group(t *testing.T) {
@@ -36,4 +38,23 @@ func TestWebApp_Group(t *testing.T) {
 
 	require.NotNil(t, webapp.Router)
 	require.NotNil(t, webapp.Router.mux)
+}
+
+func TestWebApp_LoggingMiddlewarePreservesFlusher(t *testing.T) {
+	webapp := mustNew(t, "test", "8080")
+
+	webapp.Get("/stream", func(w http.ResponseWriter, _ *http.Request) {
+		if _, ok := w.(http.Flusher); !ok {
+			http.Error(w, "missing flusher", http.StatusInternalServerError)
+			return
+		}
+
+		w.WriteHeader(http.StatusNoContent)
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/stream", nil)
+	rr := httptest.NewRecorder()
+	webapp.Router.ServeHTTP(rr, req)
+
+	require.Equal(t, http.StatusNoContent, rr.Code)
 }
