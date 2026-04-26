@@ -40,6 +40,29 @@ func TestWebApp_Group(t *testing.T) {
 	require.NotNil(t, webapp.Router.mux)
 }
 
+func TestWebApp_UseBeforeRoutesAfterNew(t *testing.T) {
+	webapp := mustNew(t, "test", "8080")
+
+	require.NotPanics(t, func() {
+		webapp.Use(func(next http.Handler) http.Handler {
+			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("X-Test", "ok")
+				next.ServeHTTP(w, r)
+			})
+		})
+		webapp.Get("/test", func(w http.ResponseWriter, _ *http.Request) {
+			w.WriteHeader(http.StatusNoContent)
+		})
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	rr := httptest.NewRecorder()
+	webapp.Router.ServeHTTP(rr, req)
+
+	require.Equal(t, http.StatusNoContent, rr.Code)
+	require.Equal(t, "ok", rr.Header().Get("X-Test"))
+}
+
 func TestWebApp_LoggingMiddlewarePreservesFlusher(t *testing.T) {
 	webapp := mustNew(t, "test", "8080")
 

@@ -2,13 +2,15 @@ package gowebapp
 
 import (
 	"net/http"
+	"sync"
 
 	"github.com/go-chi/chi/v5"
 )
 
 // Router wraps chi.Mux and exposes HTTP method helpers.
 type Router struct {
-	mux *chi.Mux
+	mux          *chi.Mux
+	systemRoutes sync.Once
 }
 
 // Mux returns the underlying chi.Router, allowing direct access for
@@ -66,5 +68,6 @@ func (r *Router) Trace(pattern string, handler http.HandlerFunc) {
 }
 
 func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+	r.mountSystemRoutes()
 	r.mux.ServeHTTP(w, req)
 }

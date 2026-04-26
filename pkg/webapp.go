@@ -2,7 +2,6 @@ package gowebapp
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -64,6 +63,8 @@ func (wa *WebApp) Context() context.Context {
 // receives an interrupt or termination signal.
 func (wa *WebApp) Run() error {
 	defer wa.stop()
+
+	wa.Router.mountSystemRoutes()
 
 	errCh := make(chan error, 1)
 	wa.Logger.Info(wa.ctx, "http server starting", golog.Field("port", wa.Port))
@@ -140,13 +141,6 @@ func newRouter(logger golog.Logger, cfg webAppConfig) *Router {
 
 	// Request/response logging.
 	mux.Use(logRequestResponse(logger))
-
-	// Ping endpoint.
-	mux.Get("/ping", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json; charset=utf-8")
-		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
-	})
 
 	return &Router{mux: mux}
 }
