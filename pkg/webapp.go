@@ -2,6 +2,7 @@ package gowebapp
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -37,7 +38,7 @@ func New(environment string, port string, opts ...Option) (*WebApp, error) {
 
 	scope := Scope{Environment: environment}
 	router := newRouter(logger, cfg)
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	ctx, cancel := context.WithCancel(context.Background())
 
 	return &WebApp{
 		Router: router,
@@ -48,8 +49,8 @@ func New(environment string, port string, opts ...Option) (*WebApp, error) {
 			Addr:    ":" + port,
 			Handler: router.mux,
 		},
-		ctx:  ctx,
-		stop: stop,
+		ctx:    ctx,
+		cancel: cancel,
 	}, nil
 }
 
@@ -62,9 +63,9 @@ func (wa *WebApp) Context() context.Context {
 // Run starts the HTTP server and blocks until the server stops or the process
 // receives an interrupt or termination signal.
 func (wa *WebApp) Run() error {
-	defer wa.stop()
-
-	wa.Router.mountSystemRoutes()
+	runCtx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	defer wa.cancel()
 
 	errCh := make(chan error, 1)
 	wa.Logger.Info(wa.ctx, "http server starting", golog.Field("port", wa.Port))
@@ -80,15 +81,20 @@ func (wa *WebApp) Run() error {
 	select {
 	case err := <-errCh:
 		return err
-	case <-wa.ctx.Done():
+	case <-runCtx.Done():
 	}
 
+	stop()
+	wa.cancel()
 	wa.Logger.Info(context.Background(), "shutdown signal received")
 
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), defaultShutdownTimeout)
 	defer cancel()
 
 	if err := wa.server.Shutdown(shutdownCtx); err != nil {
+		if closeErr := wa.server.Close(); closeErr != nil {
+			return fmt.Errorf("gowebapp: shutdown server: %w; close: %v", err, closeErr)
+		}
 		return fmt.Errorf("gowebapp: shutdown server: %w", err)
 	}
 
@@ -119,20 +125,20 @@ func newRouter(logger golog.Logger, cfg webAppConfig) *Router {
 	mux.Use(middleware.RealIP)
 	mux.Use(middleware.Recoverer)
 
+	if hasSecurityHeaders(cfg.securityHeaders) {
+		mux.Use(securityHeadersMiddleware(cfg.securityHeaders))
+	}
+
 	// CORS middleware (if configured)
 	if cfg.corsEnabled {
 		mux.Use(cors.Handler(cors.Options{
 			AllowedOrigins:   cfg.corsOrigins,
 			AllowedMethods:   []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
-			AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-Org-ID", "X-Request-Id"},
+			AllowedHeaders:   cfg.corsAllowedHeaders,
 			ExposedHeaders:   []string{"Link", "X-Request-Id"},
 			AllowCredentials: true,
 			MaxAge:           300,
 		}))
-	}
-
-	if cfg.securityHeaders {
-		mux.Use(SecurityHeaders)
 	}
 
 	// Context enrichment: adds request_id, method, path to context
@@ -141,6 +147,12 @@ func newRouter(logger golog.Logger, cfg webAppConfig) *Router {
 
 	// Request/response logging.
 	mux.Use(logRequestResponse(logger))
+
+	mux.Get("/ping", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(http.StatusOK)
+		_ = json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
+	})
 
 	return &Router{mux: mux}
 }

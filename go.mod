@@ -3,7 +3,6 @@ module github.com/marcosstupnicki/go-webapp
 go 1.22.0
 
 require (
-	github.com/felixge/httpsnoop v1.0.4
 	github.com/go-chi/chi/v5 v5.0.12
 	github.com/go-chi/cors v1.2.1
 	github.com/marcosstupnicki/go-log v1.0.0

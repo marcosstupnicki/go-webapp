@@ -15,7 +15,8 @@ func TestDefaultConfig(t *testing.T) {
 	cfg := defaultConfig()
 	assert.False(t, cfg.corsEnabled)
 	assert.Empty(t, cfg.corsOrigins)
-	assert.False(t, cfg.securityHeaders)
+	assert.Equal(t, []string{"Accept", "Authorization", "Content-Type", "X-Request-ID"}, cfg.corsAllowedHeaders)
+	assert.Empty(t, cfg.securityHeaders)
 }
 
 func TestOptions(t *testing.T) {
@@ -33,10 +34,17 @@ func TestOptions(t *testing.T) {
 			},
 		},
 		{
-			name: "WithSecurityHeaders enables security headers",
-			opt:  WithSecurityHeaders(),
+			name: "WithCORSAllowedHeaders configures allowed headers",
+			opt:  WithCORSAllowedHeaders([]string{"Authorization", "X-Org-ID"}),
 			check: func(t *testing.T, cfg webAppConfig) {
-				assert.True(t, cfg.securityHeaders)
+				assert.Equal(t, []string{"Authorization", "X-Org-ID"}, cfg.corsAllowedHeaders)
+			},
+		},
+		{
+			name: "WithSecurityHeaders enables security headers",
+			opt:  WithSecurityHeaders(map[string]string{"X-Test": "ok"}),
+			check: func(t *testing.T, cfg webAppConfig) {
+				assert.Equal(t, map[string]string{"X-Test": "ok"}, cfg.securityHeaders)
 			},
 		},
 	}
@@ -123,7 +131,7 @@ func TestNew_RouterMux(t *testing.T) {
 }
 
 func TestNew_SecurityHeaders(t *testing.T) {
-	webapp := mustNew(t, "test", "0", WithSecurityHeaders())
+	webapp := mustNew(t, "test", "0", WithSecurityHeaders(DefaultSecurityHeaders()))
 
 	req := httptest.NewRequest(http.MethodGet, "/ping", nil)
 	rr := httptest.NewRecorder()
@@ -131,4 +139,27 @@ func TestNew_SecurityHeaders(t *testing.T) {
 
 	assert.Equal(t, "nosniff", rr.Header().Get("X-Content-Type-Options"))
 	assert.Equal(t, "DENY", rr.Header().Get("X-Frame-Options"))
+	assert.Equal(t, "default-src 'self';", rr.Header().Get("Content-Security-Policy"))
+	assert.Equal(t, "max-age=31536000; includeSubDomains", rr.Header().Get("Strict-Transport-Security"))
+	assert.Equal(t, "strict-origin-when-cross-origin", rr.Header().Get("Referrer-Policy"))
+	assert.Equal(t, "geolocation=(), camera=()", rr.Header().Get("Permissions-Policy"))
+}
+
+func TestNew_CORSAllowedHeaders(t *testing.T) {
+	webapp := mustNew(t, "test", "0",
+		WithCORS([]string{"https://dashboard.example"}),
+		WithCORSAllowedHeaders([]string{"Authorization", "X-Org-ID"}),
+	)
+
+	req := httptest.NewRequest(http.MethodOptions, "/ping", nil)
+	req.Header.Set("Origin", "https://dashboard.example")
+	req.Header.Set("Access-Control-Request-Method", http.MethodGet)
+	req.Header.Set("Access-Control-Request-Headers", "Authorization, X-Org-ID")
+	rr := httptest.NewRecorder()
+
+	webapp.Router.ServeHTTP(rr, req)
+
+	assert.Equal(t, http.StatusOK, rr.Code)
+	assert.Contains(t, rr.Header().Get("Access-Control-Allow-Headers"), "Authorization")
+	assert.Contains(t, rr.Header().Get("Access-Control-Allow-Headers"), "X-Org-Id")
 }

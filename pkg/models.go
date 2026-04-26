@@ -17,7 +17,7 @@ type WebApp struct {
 
 	server *http.Server
 	ctx    context.Context
-	stop   context.CancelFunc
+	cancel context.CancelFunc
 }
 
 // Scope contains environment metadata for the application.

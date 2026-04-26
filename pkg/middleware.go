@@ -1,32 +1,37 @@
 package gowebapp
 
-import (
-	"net/http"
-	"strings"
-)
+import "net/http"
 
-// RequireJSONContentType rejects POST/PATCH/PUT requests whose Content-Type
-// is present but not application/json. Requests with no Content-Type header
-// are allowed through so handlers can decide whether a body is required.
-func RequireJSONContentType(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodPost || r.Method == http.MethodPatch || r.Method == http.MethodPut {
-			contentType := r.Header.Get("Content-Type")
-			if contentType != "" && !strings.HasPrefix(contentType, "application/json") {
-				_ = RespondWithError(w, http.StatusUnsupportedMediaType, "Content-Type must be application/json")
-				return
-			}
-		}
-
-		next.ServeHTTP(w, r)
-	})
+// DefaultSecurityHeaders returns the recommended baseline browser security
+// headers for web applications.
+func DefaultSecurityHeaders() map[string]string {
+	return map[string]string{
+		"Content-Security-Policy":   "default-src 'self';",
+		"Strict-Transport-Security": "max-age=31536000; includeSubDomains",
+		"X-Frame-Options":           "DENY",
+		"X-Content-Type-Options":    "nosniff",
+		"Referrer-Policy":           "strict-origin-when-cross-origin",
+		"Permissions-Policy":        "geolocation=(), camera=()",
+	}
 }
 
 // SecurityHeaders adds standard security response headers to every request.
-func SecurityHeaders(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("X-Content-Type-Options", "nosniff")
-		w.Header().Set("X-Frame-Options", "DENY")
-		next.ServeHTTP(w, r)
-	})
+func SecurityHeaders(headers map[string]string) func(http.Handler) http.Handler {
+	copied := cloneHeaderMap(headers)
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			for key, value := range copied {
+				w.Header().Set(key, value)
+			}
+			next.ServeHTTP(w, r)
+		})
+	}
+}
+
+func securityHeadersMiddleware(headers map[string]string) func(http.Handler) http.Handler {
+	return SecurityHeaders(headers)
+}
+
+func hasSecurityHeaders(headers map[string]string) bool {
+	return len(headers) > 0
 }
