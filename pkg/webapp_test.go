@@ -1,8 +1,10 @@
 package gowebapp
 
 import (
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 
 	"github.com/go-chi/chi/v5"
@@ -83,4 +85,43 @@ func TestWebApp_LoggingMiddlewarePreservesFlusher(t *testing.T) {
 	webapp.Router.ServeHTTP(rr, req)
 
 	require.Equal(t, http.StatusNoContent, rr.Code)
+}
+
+func TestWebApp_WaitForServerStopLogsAfterExpectedServerClose(t *testing.T) {
+	output := captureStderr(t, func() {
+		webapp := mustNew(t, "test", "8080")
+		serverErr := make(chan error, 1)
+		serverErr <- http.ErrServerClosed
+
+		require.NoError(t, webapp.waitForServerStop(serverErr))
+	})
+
+	require.Contains(t, output, "http server stopped")
+}
+
+func captureStderr(t *testing.T, fn func()) string {
+	t.Helper()
+
+	oldStderr := os.Stderr
+	reader, writer, err := os.Pipe()
+	require.NoError(t, err)
+
+	os.Stderr = writer
+	defer func() {
+		os.Stderr = oldStderr
+	}()
+
+	output := make(chan string, 1)
+	go func() {
+		data, _ := io.ReadAll(reader)
+		output <- string(data)
+	}()
+
+	fn()
+
+	require.NoError(t, writer.Close())
+	captured := <-output
+	require.NoError(t, reader.Close())
+
+	return captured
 }
