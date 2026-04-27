@@ -1,6 +1,8 @@
 package gowebapp
 
 import (
+	"net/http"
+
 	golog "github.com/marcosstupnicki/go-log"
 )
 
@@ -11,6 +13,8 @@ type WebApp struct {
 	Scope
 	Port   string
 	Logger golog.Logger
+
+	server *http.Server
 }
 
 // Scope contains environment metadata for the application.

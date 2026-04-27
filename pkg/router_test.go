@@ -23,5 +23,6 @@ func TestRouter_Method(t *testing.T) {
 	rr := httptest.NewRecorder()
 	webapp.ServeHTTP(rr, req)
 	require.Equal(t, 200, rr.Code)
+	require.Equal(t, ".", rr.Body.String())
 	require.NotNil(t, webapp.Router)
 }
