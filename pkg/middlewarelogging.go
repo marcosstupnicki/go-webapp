@@ -22,18 +22,13 @@ func logRequestResponse(logger golog.Logger) func(http.Handler) http.Handler {
 			if r.Body != nil {
 				bodyBytes, _ := io.ReadAll(r.Body)
 				r.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
-
-				if len(bodyBytes) > 0 {
-					var parsed map[string]any
-					if err := json.Unmarshal(bodyBytes, &parsed); err == nil {
-						requestBody = parsed
-					} else {
-						requestBody = map[string]any{"raw": string(bodyBytes)}
-					}
-				}
+				requestBody = parseLogBody(bodyBytes)
 			}
 
 			ww := middleware.NewWrapResponseWriter(w, r.ProtoMajor)
+			var responseBody bytes.Buffer
+			ww.Tee(&responseBody)
+
 			next.ServeHTTP(ww, r)
 			duration := time.Since(start)
 
@@ -46,17 +41,28 @@ func logRequestResponse(logger golog.Logger) func(http.Handler) http.Handler {
 				golog.Field("request", map[string]any{
 					"body":    requestBody,
 					"headers": r.Header,
-					"method":  r.Method,
-					"path":    r.URL.Path,
 					"query":   r.URL.Query(),
 				}),
 				golog.Field("response", map[string]any{
-					"headers":     ww.Header(),
-					"status":      status,
-					"bytes":       ww.BytesWritten(),
-					"duration_ms": duration.Milliseconds(),
+					"body":     parseLogBody(responseBody.Bytes()),
+					"duration": duration.Milliseconds(),
+					"headers":  ww.Header(),
+					"status":   status,
 				}),
 			)
 		})
 	}
+}
+
+func parseLogBody(body []byte) any {
+	if len(body) == 0 {
+		return nil
+	}
+
+	var parsed any
+	if err := json.Unmarshal(body, &parsed); err == nil {
+		return parsed
+	}
+
+	return string(body)
 }
