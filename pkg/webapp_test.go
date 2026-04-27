@@ -39,6 +39,33 @@ func TestWebApp_Group(t *testing.T) {
 	require.NotNil(t, webapp.Router.mux)
 }
 
+func TestWebApp_WithMiddlewareScopesMiddlewareToRoute(t *testing.T) {
+	webapp := mustNew(t, "test", "8080")
+
+	webapp.WithMiddleware(func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("X-Scoped-Middleware", "true")
+			next.ServeHTTP(w, r)
+		})
+	}).Get("/scoped", func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	})
+
+	scopedReq := httptest.NewRequest(http.MethodGet, "/scoped", nil)
+	scopedRR := httptest.NewRecorder()
+	webapp.Router.ServeHTTP(scopedRR, scopedReq)
+
+	require.Equal(t, http.StatusNoContent, scopedRR.Code)
+	require.Equal(t, "true", scopedRR.Header().Get("X-Scoped-Middleware"))
+
+	pingReq := httptest.NewRequest(http.MethodGet, "/ping", nil)
+	pingRR := httptest.NewRecorder()
+	webapp.Router.ServeHTTP(pingRR, pingReq)
+
+	require.Equal(t, http.StatusOK, pingRR.Code)
+	require.Empty(t, pingRR.Header().Get("X-Scoped-Middleware"))
+}
+
 func TestWebApp_LoggingMiddlewarePreservesFlusher(t *testing.T) {
 	webapp := mustNew(t, "test", "8080")
 

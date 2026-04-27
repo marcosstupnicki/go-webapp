@@ -25,6 +25,12 @@ func (r *Router) Use(middlewares ...func(http.Handler) http.Handler) {
 	}
 }
 
+// WithMiddleware creates an inline router with middleware scoped only to the
+// routes chained from it.
+func (r *Router) WithMiddleware(middlewares ...func(http.Handler) http.Handler) chi.Router {
+	return r.mux.With(middlewares...)
+}
+
 func (r *Router) Method(method string, pattern string, handler http.HandlerFunc) {
 	r.mux.Method(method, pattern, handler)
 }
