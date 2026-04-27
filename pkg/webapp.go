@@ -86,8 +86,12 @@ func (wa *WebApp) handleShutdown(serverErr <-chan error) error {
 		return fmt.Errorf("gowebapp: shutdown server: %w", err)
 	}
 
-	if err := <-serverErr; err != nil {
-		return normalizeServerError(err)
+	return wa.waitForServerStop(serverErr)
+}
+
+func (wa *WebApp) waitForServerStop(serverErr <-chan error) error {
+	if err := normalizeServerError(<-serverErr); err != nil {
+		return err
 	}
 
 	wa.Logger.Info(context.Background(), "http server stopped")
