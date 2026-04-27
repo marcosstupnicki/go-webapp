@@ -38,7 +38,6 @@ func New(environment string, port string, opts ...Option) (*WebApp, error) {
 
 	scope := Scope{Environment: environment}
 	router := newRouter(logger, cfg)
-	ctx, cancel := context.WithCancel(context.Background())
 
 	return &WebApp{
 		Router: router,
@@ -49,44 +48,33 @@ func New(environment string, port string, opts ...Option) (*WebApp, error) {
 			Addr:    ":" + port,
 			Handler: router.mux,
 		},
-		ctx:    ctx,
-		cancel: cancel,
 	}, nil
-}
-
-// Context returns the root application context. It is canceled when the
-// process receives an interrupt or termination signal.
-func (wa *WebApp) Context() context.Context {
-	return wa.ctx
 }
 
 // Run starts the HTTP server and blocks until the server stops or the process
 // receives an interrupt or termination signal.
 func (wa *WebApp) Run() error {
-	runCtx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	defer stop()
-	defer wa.cancel()
+	wa.Logger.Info(context.Background(), "http server starting", golog.Field("port", wa.Port))
 
-	errCh := make(chan error, 1)
-	wa.Logger.Info(wa.ctx, "http server starting", golog.Field("port", wa.Port))
-
+	serverErr := make(chan error, 1)
 	go func() {
-		if err := wa.server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			errCh <- err
-			return
-		}
-		errCh <- nil
+		serverErr <- wa.server.ListenAndServe()
 	}()
 
-	select {
-	case err := <-errCh:
-		return err
-	case <-runCtx.Done():
-	}
+	return wa.handleShutdown(serverErr)
+}
 
-	stop()
-	wa.cancel()
-	wa.Logger.Info(context.Background(), "shutdown signal received")
+func (wa *WebApp) handleShutdown(serverErr <-chan error) error {
+	signalCh := make(chan os.Signal, 1)
+	signal.Notify(signalCh, os.Interrupt, syscall.SIGTERM)
+	defer signal.Stop(signalCh)
+
+	select {
+	case err := <-serverErr:
+		return normalizeServerError(err)
+	case <-signalCh:
+		wa.Logger.Info(context.Background(), "shutdown signal received")
+	}
 
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), defaultShutdownTimeout)
 	defer cancel()
@@ -98,12 +86,19 @@ func (wa *WebApp) Run() error {
 		return fmt.Errorf("gowebapp: shutdown server: %w", err)
 	}
 
-	if err := <-errCh; err != nil {
-		return err
+	if err := <-serverErr; err != nil {
+		return normalizeServerError(err)
 	}
 
 	wa.Logger.Info(context.Background(), "http server stopped")
 	return nil
+}
+
+func normalizeServerError(err error) error {
+	if errors.Is(err, http.ErrServerClosed) {
+		return nil
+	}
+	return err
 }
 
 // Group creates a temporary scope for mounting middleware before route definitions.
@@ -123,6 +118,13 @@ func newRouter(logger golog.Logger, cfg webAppConfig) *Router {
 	// Core middleware
 	mux.Use(middleware.RequestID)
 	mux.Use(middleware.RealIP)
+
+	// Context enrichment: adds request_id, method, path to context
+	// so downstream logger.Info(ctx, ...) calls include these fields.
+	mux.Use(enrichContextMiddleware)
+
+	// Request/response logging wraps recoverer so panic responses are logged.
+	mux.Use(logRequestResponse(logger))
 	mux.Use(middleware.Recoverer)
 
 	if hasSecurityHeaders(cfg.securityHeaders) {
@@ -140,13 +142,6 @@ func newRouter(logger golog.Logger, cfg webAppConfig) *Router {
 			MaxAge:           300,
 		}))
 	}
-
-	// Context enrichment: adds request_id, method, path to context
-	// so downstream logger.Info(ctx, ...) calls include these fields.
-	mux.Use(enrichContextMiddleware)
-
-	// Request/response logging.
-	mux.Use(logRequestResponse(logger))
 
 	mux.Get("/ping", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")

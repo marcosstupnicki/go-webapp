@@ -23,7 +23,6 @@ func TestNew(t *testing.T) {
 	require.Equal(t, Scope{Environment: "dummy-env"}, webapp.Scope)
 	require.Equal(t, "8080", webapp.Port)
 	require.NotNil(t, webapp.Router)
-	require.NotNil(t, webapp.Context())
 }
 
 func TestWebApp_Group(t *testing.T) {
