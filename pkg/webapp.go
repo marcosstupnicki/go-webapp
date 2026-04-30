@@ -31,7 +31,7 @@ func New(environment string, port string, opts ...Option) (*WebApp, error) {
 		opt(&cfg)
 	}
 
-	logger, err := golog.New(environment)
+	logger, err := golog.New(environment, cfg.loggerOptions...)
 	if err != nil {
 		return nil, fmt.Errorf("gowebapp: create logger: %w", err)
 	}
@@ -121,14 +121,18 @@ func newRouter(logger golog.Logger, cfg webAppConfig) *Router {
 
 	// Core middleware
 	mux.Use(middleware.RequestID)
-	mux.Use(middleware.RealIP)
+	if cfg.realIPEnabled {
+		mux.Use(middleware.RealIP)
+	}
 
 	// Context enrichment: adds request_id, method, path to context
 	// so downstream logger.Info(ctx, ...) calls include these fields.
 	mux.Use(enrichContextMiddleware)
 
 	// Request/response logging wraps recoverer so panic responses are logged.
-	mux.Use(logRequestResponse(logger))
+	if cfg.httpLogging.Enabled {
+		mux.Use(logRequestResponse(logger, cfg.httpLogging))
+	}
 	mux.Use(middleware.Recoverer)
 
 	if hasSecurityHeaders(cfg.securityHeaders) {

@@ -17,6 +17,11 @@ func TestDefaultConfig(t *testing.T) {
 	assert.Empty(t, cfg.corsOrigins)
 	assert.Equal(t, []string{"Accept", "Authorization", "Content-Type", "X-Request-ID"}, cfg.corsAllowedHeaders)
 	assert.Empty(t, cfg.securityHeaders)
+	assert.True(t, cfg.httpLogging.Enabled)
+	assert.False(t, cfg.httpLogging.IncludeRequestBody)
+	assert.False(t, cfg.httpLogging.IncludeRequestHeaders)
+	assert.False(t, cfg.httpLogging.IncludeResponseBody)
+	assert.True(t, cfg.realIPEnabled)
 }
 
 func TestOptions(t *testing.T) {
@@ -45,6 +50,37 @@ func TestOptions(t *testing.T) {
 			opt:  WithSecurityHeaders(map[string]string{"X-Test": "ok"}),
 			check: func(t *testing.T, cfg webAppConfig) {
 				assert.Equal(t, map[string]string{"X-Test": "ok"}, cfg.securityHeaders)
+			},
+		},
+		{
+			name: "WithHTTPLogging configures access logs",
+			opt: WithHTTPLogging(HTTPLoggingConfig{
+				Enabled:               true,
+				IncludeRequestHeaders: true,
+				IncludeRequestBody:    true,
+				MaxBodyBytes:          128,
+				RedactedHeaders:       []string{"Authorization"},
+			}),
+			check: func(t *testing.T, cfg webAppConfig) {
+				assert.True(t, cfg.httpLogging.Enabled)
+				assert.True(t, cfg.httpLogging.IncludeRequestHeaders)
+				assert.True(t, cfg.httpLogging.IncludeRequestBody)
+				assert.Equal(t, int64(128), cfg.httpLogging.MaxBodyBytes)
+				assert.Equal(t, []string{"Authorization"}, cfg.httpLogging.RedactedHeaders)
+			},
+		},
+		{
+			name: "WithoutHTTPLogging disables access logs",
+			opt:  WithoutHTTPLogging(),
+			check: func(t *testing.T, cfg webAppConfig) {
+				assert.False(t, cfg.httpLogging.Enabled)
+			},
+		},
+		{
+			name: "WithRealIP disables RealIP",
+			opt:  WithRealIP(false),
+			check: func(t *testing.T, cfg webAppConfig) {
+				assert.False(t, cfg.realIPEnabled)
 			},
 		},
 	}
